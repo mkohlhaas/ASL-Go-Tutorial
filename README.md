@@ -12,6 +12,27 @@ examples.
 The first six steps need nothing but Go. Step 7 uses PostgreSQL via Docker
 Compose.
 
+## Contents
+
+- [Quick start](#quick-start)
+- [The 60-second mental model](#the-60-second-mental-model)
+- [Two APIs, one workflow format](#two-apis-one-workflow-format)
+- [Repository map](#repository-map)
+- [Step 1 — One Task, one handler](#step-1--one-task-one-handler)
+- [Step 2 — Branching with Choice](#step-2--branching-with-choice)
+- [Step 3 — Shaping data between states](#step-3--shaping-data-between-states)
+- [Step 4 — Retry, Catch, and failure](#step-4--retry-catch-and-failure)
+- [Step 5 — Concurrent branches with Parallel](#step-5--concurrent-branches-with-parallel)
+- [Step 6 — Waiting without polling](#step-6--waiting-without-polling)
+- [Step 7 — Persistence with PostgreSQL](#step-7--persistence-with-postgresql)
+- [Why `internal/lab` exists](#why-internallab-exists)
+- [Known bugs in v1.2.22](#known-bugs-in-v1222)
+  - [Outright bugs](#outright-bugs)
+  - [ASL incompatibilities and design constraints](#asl-incompatibilities-and-design-constraints)
+- [Troubleshooting](#troubleshooting)
+- [Where to go next](#where-to-go-next)
+- [Credits](#credits)
+
 ---
 
 ## Quick start
