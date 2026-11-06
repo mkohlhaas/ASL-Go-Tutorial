@@ -82,13 +82,15 @@ The single most surprising thing for newcomers: **this library does not call
 AWS**. `Resource` is just a lookup key. You register a Go function under that
 name, and the library calls it.
 
-```text
-input ──▶ [ State ] ──▶ output ──▶ [ State ] ──▶ ... ──▶ output
-               │
-               └── Task: Resource "demo:greeting"
-                         │
-                         ▼
-                   your Go function
+```mermaid
+flowchart LR
+    input([input]) --> S1["State"]
+    S1 --> out1([output])
+    out1 --> S2["State"]
+    S2 --> dots["..."]
+    dots --> final([output])
+
+    S1 -.->|"Task: Resource 'demo:greeting'"| handler["your Go function"]
 ```
 
 ---
@@ -109,8 +111,8 @@ The library has two execution engines:
 Steps 2–6 use a tiny shared runner in `internal/lab` rather than the
 in-memory `Execute` method. The reason is explained in
 [Why `internal/lab` exists](#why-internallab-exists). It is not a hidden
-framework; it is about 100 lines and it makes the v1.2.22 data-flow quirk
-visible instead of silently teaching the wrong behaviour.
+framework; it is about 100 lines and it works around a real data-flow bug in
+v1.2.22 instead of silently teaching the wrong behaviour.
 
 ---
 
@@ -188,7 +190,7 @@ context value in step 3 is mandatory; without it the Task silently passes its
 input through unchanged.
 
 > AWS ASL writes `name.$: $.name`. This engine expects the value itself to be
-> the path, as shown above. See [Gotchas](#v1222-gotchas).
+> the path, as shown above. See [Known bugs in v1.2.22](#known-bugs-in-v1222).
 
 ---
 
@@ -230,7 +232,8 @@ match, a `Pass` branch, and the `Default` branch.
 workflow makes the branch structure visible without running any Go code.
 
 > The example uses a flat input document on purpose. Nested `Parameters` paths
-> hit a double-expansion bug in v1.2.22; see [Gotchas](#v1222-gotchas).
+> hit a double-expansion bug in v1.2.22; see
+> [Known bugs in v1.2.22](#known-bugs-in-v1222).
 
 ---
 
@@ -487,8 +490,8 @@ output, next := state.Execute(ctx, currentInput)
 currentInput = output
 ```
 
-This keeps steps 2–6 database-free and free of the upstream quirk, without
-pretending the quirk does not exist. Step 7 uses the persistent engine, which
+This keeps steps 2–6 database-free and free of the upstream bug, without
+pretending the bug does not exist. Step 7 uses the persistent engine, which
 does thread data forward (it merges each state's output into the execution
 input).
 
@@ -498,17 +501,40 @@ the persistent engine or a small loop like `lab.Run`.
 
 ---
 
-## v1.2.22 gotchas
+## Known bugs in v1.2.22
 
-These are behaviours observed while building this tutorial. They are specific
-to **v1.2.22**; check upstream if you upgrade.
+These are implementation defects and spec gaps, not intended ASL behaviour.
+They are listed explicitly because a tutorial that quietly worked around them
+would teach you the wrong mental model. Verify them upstream if you upgrade.
 
-1. **In-memory multi-state data flow.** As described above, the in-memory
-   runner passes the original input to every state.
+To be direct: eight of these are outright bugs, not merely surprising
+behaviour. They either violate ASL semantics (`Fail` succeeding, data flow not
+threading, persistent keys accumulating), silently change behaviour
+(`IntervalSeconds` ignored), or fail in a way that hides the real problem
+(double-expanded `Parameters`, silent Task→Pass fallback, exact-text error
+matching). `Map` is a missing implementation that the public documentation
+implies exists; functionally, that is also a defect.
 
-2. **Tasks need the execution context.** If you forget
-   `context.WithValue(ctx, types.ExecutionContextKey, ...)`, a `Task` behaves
-   like a `Pass` state and returns its input unchanged. There is no error.
+The remaining two are better classified as an ASL incompatibility and a design
+constraint: `key.$` syntax is unsupported, and execution names are unique per
+state machine. They are not bugs in the same sense, but callers still have to
+design around them.
+
+Why make the distinction? Bugs violate the intended semantics and may be fixed
+upstream, so workarounds should be treated as temporary. Incompatibilities and
+constraints are properties of the current API that you must plan for. In both
+cases, do not copy a silent-failure workaround into production code without
+adding an explicit error path of your own.
+
+### Outright bugs
+
+1. **In-memory multi-state data flow is broken.** As described above, the
+   in-memory runner passes the original workflow input to every state instead
+   of the previous state's output.
+
+2. **A missing executor silently turns Tasks into Pass states.** If you forget
+   `context.WithValue(ctx, types.ExecutionContextKey, ...)`, a `Task` returns
+   its input unchanged. There is no error or warning.
 
 3. **`Parameters` is expanded twice.** `prepareInput` expands it, then
    `DefaultTaskHandler.Execute` expands it again. A same-name top-level lookup
@@ -517,34 +543,41 @@ to **v1.2.22**; check upstream if you upgrade.
    second (`field 'order' not found`). Literal values are safe. Prefer
    `InputPath`/`ResultSelector` for anything non-trivial.
 
-4. **AWS `key.$` syntax is not supported.** Write `name: "$.name"`, not
-   `name.$: "$.name"`.
+4. **`Fail` states do not fail.** `FailState.Execute` returns a nil error, so
+   the execution is marked `SUCCEEDED`. Use a Task that returns a Go error, or
+   treat the `Fail` state as documentation only.
 
-5. **`Fail` states do not fail in v1.2.22.** `FailState.Execute` returns a nil
-   error, so the execution is marked `SUCCEEDED`. Use a Task that returns a Go
-   error, or treat the `Fail` state as documentation only.
-
-6. **`Map` is not registered.** The factory handles `Pass`, `Fail`, `Succeed`,
+5. **`Map` is not registered.** The factory handles `Pass`, `Fail`, `Succeed`,
    `Wait`, `Choice`, `Parallel`, `Task`, and `Message`, but not `Map`, despite
    what the README may claim.
 
-7. **`ErrorEquals` is exact text.** It matches `err.Error()` exactly, or
-   `States.ALL`. Wrapped errors and typed errors do not match a bare name.
+6. **`ErrorEquals` compares raw error text.** It matches the complete
+   `err.Error()` string exactly, or `States.ALL`. Wrapped errors and typed
+   errors do not match a bare name.
 
-8. **Retry timing.** `IntervalSeconds` is ignored. The base delay is 1 second,
+7. **`Retry.IntervalSeconds` is ignored.** The base delay is always 1 second,
    multiplied by `BackoffRate`. `MaxAttempts` comes from the first Retry rule.
 
-9. **Execution names are unique per state machine.** In persistent mode,
-   `WithExecutionName` rejects a duplicate name for the same state machine.
-   Omit the option to auto-generate a name, or include a timestamp/UUID.
+8. **Persistent data flow never replaces earlier keys.** The persistent runner
+   merges each state's output back into the execution input rather than
+   replacing it. Scenarios where a state is supposed to drop earlier keys can
+   therefore behave differently from AWS Step Functions. Use
+   `ResultPath`/`OutputPath` deliberately and inspect history.
 
-10. **Persistent data flow accumulates.** The persistent runner merges each
-    state's output back into the execution input rather than replacing it.
-    Scenarios where a state is supposed to drop earlier keys can therefore
-    behave differently from AWS Step Functions. Use `ResultPath`/`OutputPath`
-    deliberately and inspect history.
+### ASL incompatibilities and design constraints
 
-The tutorial deliberately stays inside the subset that behaves predictably.
+These may be deliberate design choices or missing features, but they still
+differ from AWS ASL:
+
+- **AWS `key.$` syntax is not supported.** Write `name: "$.name"`, not
+  `name.$: "$.name"`.
+- **Execution names must be unique per state machine.** In persistent mode,
+  `WithExecutionName` rejects a duplicate name for the same state machine.
+  Omit the option to auto-generate a name, or include a timestamp/UUID.
+
+The tutorial deliberately avoids triggering these defects. Where it must work
+around one — the `internal/lab` runner for multi-state in-memory execution —
+the workaround is called out rather than hidden.
 
 ---
 
@@ -614,8 +647,8 @@ make db-reset
 - Explore features not covered here: `Message` pause/resume, linked and batch
   executions, distributed queues, crash recovery, and GORM/Redis integrations.
   Check their actual behaviour against v1.2.22 before relying on them.
-- If you upgrade the library, re-run this tutorial. The gotchas above may have
-  changed.
+- If you upgrade the library, re-run this tutorial. The bugs and
+  incompatibilities above may have been fixed or changed.
 
 ---
 
