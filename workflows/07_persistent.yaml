@@ -1,0 +1,14 @@
+Comment: "Step 7 - the same workflow, executed by the persistent engine"
+StartAt: Validate
+States:
+  Validate:
+    Type: Task
+    Resource: "demo:validate"
+    ResultPath: "$.validation"
+    Next: Store
+
+  Store:
+    Type: Task
+    Resource: "demo:store"
+    ResultPath: "$.stored"
+    End: true

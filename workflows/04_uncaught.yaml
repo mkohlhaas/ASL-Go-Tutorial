@@ -1,0 +1,7 @@
+Comment: "Step 4b - an uncaught task error fails the execution"
+StartAt: ReserveStock
+States:
+  ReserveStock:
+    Type: Task
+    Resource: "demo:reserve"
+    End: true

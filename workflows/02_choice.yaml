@@ -1,0 +1,45 @@
+Comment: "Step 2 - branching with Choice"
+StartAt: RouteOrder
+States:
+  RouteOrder:
+    Type: Choice
+    # Choices are evaluated top to bottom; the first match wins.
+    Choices:
+      # Compound condition: both rules must be true.
+      - And:
+          - Variable: "$.total"
+            NumericGreaterThanEquals: 200
+          - Variable: "$.tier"
+            StringEquals: "gold"
+        Next: Premium
+
+      - Variable: "$.total"
+        NumericGreaterThanEquals: 200
+        Next: Standard
+
+      - Variable: "$.total"
+        NumericLessThan: 50
+        Next: Small
+
+    # Used when no rule matches.
+    Default: Standard
+
+  Premium:
+    Type: Task
+    Resource: "demo:route"
+    ResultPath: "$.decision"
+    End: true
+
+  Standard:
+    Type: Task
+    Resource: "demo:route"
+    ResultPath: "$.decision"
+    End: true
+
+  Small:
+    Type: Pass
+    Result:
+      route: "small"
+      queue: "self-service"
+    ResultPath: "$.decision"
+    End: true

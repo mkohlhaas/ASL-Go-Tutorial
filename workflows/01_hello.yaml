@@ -1,0 +1,16 @@
+Comment: "Step 1 - one Task, one Go handler, no database"
+StartAt: MakeGreeting
+States:
+  # A Task does the work. "Resource" is just a lookup key: the library asks
+  # the executor for a Go function registered under this name.
+  MakeGreeting:
+    Type: Task
+    Resource: "demo:greeting"
+    Parameters:
+      # A value starting with "$" is a JSONPath lookup into the state input.
+      # (AWS ASL writes "name.$: $.name"; this engine expects the value itself
+      # to be the path. See the README's gotchas section.)
+      name: "$.name"
+      language: "en"
+    ResultPath: "$.greeting"   # merge the handler result under "greeting"
+    End: true                  # this is the last state

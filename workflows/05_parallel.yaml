@@ -1,0 +1,33 @@
+Comment: "Step 5 - run branches concurrently with Parallel"
+StartAt: FanOut
+States:
+  FanOut:
+    Type: Parallel
+    Branches:
+      - StartAt: Price
+        States:
+          Price:
+            Type: Task
+            Resource: "demo:price"
+            ResultPath: "$.price"
+            End: true
+
+      - StartAt: Stock
+        States:
+          Stock:
+            Type: Task
+            Resource: "demo:stock"
+            ResultPath: "$.stock"
+            End: true
+
+      - StartAt: Shipping
+        States:
+          Shipping:
+            Type: Task
+            Resource: "demo:shipping"
+            ResultPath: "$.shipping"
+            End: true
+
+    # The branch results arrive as an array, one element per branch.
+    ResultPath: "$.branches"
+    End: true

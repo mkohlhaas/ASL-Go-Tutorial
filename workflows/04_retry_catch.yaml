@@ -1,0 +1,33 @@
+Comment: "Step 4 - Retry and Catch"
+StartAt: ChargeCard
+States:
+  ChargeCard:
+    Type: Task
+    Resource: "demo:charge"
+    # Retry rules are matched against the handler's error text. This library
+    # compares ErrorEquals with err.Error() exactly (or "States.ALL").
+    Retry:
+      - ErrorEquals: ["ServiceUnavailable"]
+        MaxAttempts: 3
+        BackoffRate: 1.0   # v1.2.22 ignores IntervalSeconds; base delay is 1s
+    # Catch turns a terminal task error into a normal transition.
+    Catch:
+      - ErrorEquals: ["PaymentDeclined"]
+        ResultPath: "$.error"
+        Next: Refund
+    ResultPath: "$.charge"
+    Next: SendReceipt
+
+  SendReceipt:
+    Type: Task
+    Resource: "demo:receipt"
+    ResultPath: "$.receipt"
+    End: true
+
+  Refund:
+    Type: Pass
+    Result:
+      refunded: true
+      reason: "payment declined"
+    ResultPath: "$.refund"
+    End: true

@@ -1,0 +1,15 @@
+Comment: "Step 6 - pause without burning compute"
+StartAt: Pause
+States:
+  Pause:
+    Type: Wait
+    # SecondsPath reads the duration from the input. You can also use
+    # Seconds: 5, Timestamp: "2026-01-01T00:00:00Z", or TimestampPath.
+    SecondsPath: "$.delaySeconds"
+    Next: Finish
+
+  Finish:
+    Type: Task
+    Resource: "demo:finish"
+    ResultPath: "$.finished"
+    End: true

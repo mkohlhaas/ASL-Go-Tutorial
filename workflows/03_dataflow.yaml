@@ -1,0 +1,24 @@
+Comment: "Step 3 - shaping data with InputPath / ResultSelector / ResultPath / OutputPath"
+StartAt: BuildSummary
+States:
+  # 1. InputPath: the handler only sees $.customer, not the whole document.
+  # 2. ResultSelector: pick and rename fields from the handler's return value.
+  # 3. ResultPath: put the selected result under $.summary.
+  # 4. OutputPath: the next state only receives $.summary.
+  BuildSummary:
+    Type: Task
+    Resource: "demo:summary"
+    InputPath: "$.customer"
+    ResultSelector:
+      name: "$.name"
+      loyaltyTier: "$.tier"
+      lifetimeOrders: "$.history.orders"
+    ResultPath: "$.summary"
+    OutputPath: "$.summary"
+    Next: AddMetadata
+
+  AddMetadata:
+    Type: Task
+    Resource: "demo:metadata"
+    ResultPath: "$.meta"
+    End: true
