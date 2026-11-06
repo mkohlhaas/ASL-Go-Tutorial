@@ -5,7 +5,7 @@
 // ASL gives every state four data knobs:
 //
 //	InputPath     filter what this state sees
-//	Parameters    build a custom input for a Task (see the README gotcha)
+//	Parameters    build a custom input for a Task (see the README's known bugs)
 //	ResultSelector pick/rename fields from a Task's result
 //	ResultPath    merge the result back into the state's input
 //	OutputPath    filter what the next state sees

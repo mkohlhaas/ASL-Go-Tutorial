@@ -9,7 +9,7 @@ States:
     Parameters:
       # A value starting with "$" is a JSONPath lookup into the state input.
       # (AWS ASL writes "name.$: $.name"; this engine expects the value itself
-      # to be the path. See the README's gotchas section.)
+      # to be the path. See the README's known-bugs section.)
       name: "$.name"
       language: "en"
     ResultPath: "$.greeting"   # merge the handler result under "greeting"

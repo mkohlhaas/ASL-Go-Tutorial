@@ -3,7 +3,7 @@
 // loop, and printing a readable execution trace.
 //
 // The lab runner is intentionally tiny. Version 1.2.22 of the library has a
-// quirk in its non-persistent top-level runner (StateMachine.Execute): every
+// bug in its non-persistent top-level runner (StateMachine.Execute): every
 // state receives the original workflow input instead of the previous state's
 // output. The persistent runner (used in step 7) does thread data forward.
 // To keep steps 2-6 database-free, Run below implements the standard ASL loop

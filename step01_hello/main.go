@@ -5,7 +5,7 @@
 //	go run ./step01_hello
 //
 // This step deliberately uses the library's own Execute method. Because the
-// workflow has exactly one state, it sidesteps a quirk in v1.2.22's in-memory
+// workflow has exactly one state, it sidesteps a bug in v1.2.22's in-memory
 // runner (see the README); later steps use the tutorial's small lab runner.
 //
 // What to notice:
